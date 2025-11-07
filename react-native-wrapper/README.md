@@ -1,12 +1,30 @@
-# Wrapper React Native para Aditum SDK
+# 🚀 Wrapper React Native para Aditum SDK
 
-Este wrapper permite usar a biblioteca nativa Aditum (.aar) em projetos React Native.
+[![NPM Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://www.npmjs.com/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
+
+Wrapper **completo** e **profissional** para integração da biblioteca nativa Aditum SDK em projetos React Native, com suporte total a TypeScript, validação robusta, hooks React e eventos em tempo real.
+
+## ✨ Funcionalidades
+
+- ✅ **TypeScript nativo** com tipagem completa
+- ✅ **Validação automática** com Zod
+- ✅ **Hook React personalizado** (`useAditumSdk`)
+- ✅ **Eventos em tempo real** (onPaymentSuccess, onPaymentError, etc)
+- ✅ **Tratamento de erros robusto**
+- ✅ **Formatação de dados** (CPF, telefone, moeda)
+- ✅ **Suporte a múltiplos métodos de pagamento**
+- ✅ **Cancelamento de transações**
+- ✅ **Consulta de status**
 
 ## 📋 Pré-requisitos
 
-- Projeto React Native (Bare Workflow, não Expo gerenciado)
-- Android Studio instalado
-- Arquivo `AditumSdkIntegration.aar` fornecido pela Aditum
+- ✅ Projeto React Native (Bare Workflow, **não Expo gerenciado**)
+- ✅ Android Studio instalado
+- ✅ Arquivo `AditumSdkIntegration.aar` fornecido pela Aditum
+- ✅ Node.js >= 16
+- ✅ React Native >= 0.70
 
 ## 🚀 Instalação
 
@@ -63,11 +81,26 @@ public class MainApplication extends Application implements ReactApplication {
 }
 ```
 
-### 5. Copie o arquivo JavaScript
+### 5. Instale as dependências do wrapper
 
-Copie `index.js` para o diretório do seu projeto (ex: `src/modules/AditumSdk/index.js`)
+```bash
+npm install zod
+# ou
+yarn add zod
+```
 
-### 6. Recompile o app
+### 6. Copie os arquivos do wrapper
+
+Copie os arquivos TypeScript para o diretório do seu projeto:
+
+```
+src/modules/AditumSdk/
+├── index.ts            # Wrapper principal
+├── useAditumSdk.ts     # Hook React
+├── validation.ts       # Validações com Zod
+└── package.json        # Metadados
+
+### 7. Recompile o app
 
 ```bash
 cd android
@@ -76,11 +109,98 @@ cd ..
 npx react-native run-android
 ```
 
+---
+
 ## 💡 Como Usar
 
-### Exemplo Básico
+### Opção 1: Usando o Hook `useAditumSdk` (Recomendado)
 
-```javascript
+```typescript
+import React from 'react';
+import { View, Button, Text, ActivityIndicator, Alert } from 'react-native';
+import { useAditumSdk } from './modules/AditumSdk/useAditumSdk';
+
+export default function PaymentScreen() {
+  const {
+    initialized,
+    loading,
+    error,
+    processPayment,
+    lastPaymentResult,
+  } = useAditumSdk({
+    config: {
+      apiKey: 'SUA_API_KEY_AQUI',
+      environment: 'sandbox',
+      enableLogs: __DEV__,
+    },
+    onPaymentSuccess: (result) => {
+      Alert.alert(
+        'Pagamento Aprovado! ✅',
+        `Transação: ${result.transactionId}\nValor: R$ ${result.amount.toFixed(2)}`
+      );
+    },
+    onPaymentError: (error) => {
+      Alert.alert('Erro no Pagamento', error.message);
+    },
+    onPaymentCancelled: (data) => {
+      Alert.alert('Pagamento Cancelado', data.reason);
+    },
+  });
+
+  const handlePay = async () => {
+    try {
+      await processPayment({
+        amount: 100.50,
+        installments: 3,
+        orderId: `ORDER-${Date.now()}`,
+        description: 'Compra de produto XYZ',
+        customerName: 'João Silva',
+        customerEmail: 'joao@email.com',
+      });
+    } catch (error: any) {
+      console.error('Erro:', error.message);
+    }
+  };
+
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
+      {/* Status */}
+      <Text style={{ fontSize: 18, marginBottom: 10 }}>
+        Status: {initialized ? '✅ Conectado' : '⏳ Conectando...'}
+      </Text>
+
+      {/* Erro */}
+      {error && (
+        <Text style={{ color: 'red', marginBottom: 10 }}>
+          ⚠️ {error}
+        </Text>
+      )}
+
+      {/* Loading */}
+      {loading && <ActivityIndicator size="large" />}
+
+      {/* Botão de pagamento */}
+      <Button
+        title="💳 Pagar R$ 100,50"
+        onPress={handlePay}
+        disabled={!initialized || loading}
+      />
+
+      {/* Último resultado */}
+      {lastPaymentResult && (
+        <View style={{ marginTop: 20, padding: 10, backgroundColor: '#e8f5e9' }}>
+          <Text>✅ Último pagamento aprovado</Text>
+          <Text>ID: {lastPaymentResult.transactionId}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+```
+
+### Opção 2: Usando o SDK Diretamente
+
+```typescript
 import React, { useEffect, useState } from 'react';
 import { View, Button, Text, Alert } from 'react-native';
 import AditumSdk from './modules/AditumSdk';
@@ -89,18 +209,16 @@ export default function PaymentScreen() {
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    // Inicializar o SDK quando o componente montar
     async function init() {
       try {
-        await AditumSdk.initialize(
-          'SUA_API_KEY_AQUI',
-          'sandbox' // ou 'production'
-        );
+        await AditumSdk.initialize({
+          apiKey: 'SUA_API_KEY_AQUI',
+          environment: 'sandbox',
+          enableLogs: true,
+        });
         setInitialized(true);
-        console.log('SDK inicializado com sucesso!');
-      } catch (error) {
-        console.error('Erro ao inicializar SDK:', error);
-        Alert.alert('Erro', 'Não foi possível inicializar o SDK de pagamento');
+      } catch (error: any) {
+        Alert.alert('Erro', error.message);
       }
     }
 
@@ -108,36 +226,23 @@ export default function PaymentScreen() {
   }, []);
 
   const handlePayment = async () => {
-    if (!initialized) {
-      Alert.alert('Erro', 'SDK não inicializado');
-      return;
-    }
-
     try {
       const result = await AditumSdk.processPayment({
-        amount: 100.50,
-        installments: 1,
-        orderId: `ORDER-${Date.now()}`,
-        description: 'Compra de teste'
+        amount: 150.00,
+        installments: 2,
+        orderId: 'ORDER-12345',
+        description: 'Compra de teste',
       });
 
-      Alert.alert(
-        'Pagamento Aprovado!',
-        `Transação: ${result.transactionId}\nValor: R$ ${result.amount}`
-      );
-    } catch (error) {
-      console.error('Erro no pagamento:', error);
-      Alert.alert('Erro', error.message || 'Falha ao processar pagamento');
+      Alert.alert('Sucesso!', `Transação: ${result.transactionId}`);
+    } catch (error: any) {
+      Alert.alert('Erro', error.message);
     }
   };
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
-      <Text style={{ fontSize: 20, marginBottom: 20 }}>
-        Status do SDK: {initialized ? '✅ Pronto' : '⏳ Inicializando...'}
-      </Text>
-      
-      <Button 
+      <Button
         title="Processar Pagamento"
         onPress={handlePayment}
         disabled={!initialized}
